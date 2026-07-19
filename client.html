@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZOOM日程予約</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@600;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #1E2A3A;
+    --navy-soft: #2E3E52;
+    --bg: #F5F6F8;
+    --card: #FFFFFF;
+    --line: #E3E6EC;
+    --gold: #C98A2B;
+    --teal: #2F8E82;
+    --muted: #8A93A3;
+    --text: #232C38;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    font-family: 'Zen Kaku Gothic New', sans-serif;
+    color: var(--text);
+  }
+  header {
+    background: var(--navy);
+    color: #fff;
+    padding: 36px 24px 44px;
+    text-align: center;
+  }
+  header .eyebrow {
+    letter-spacing: 0.2em;
+    font-size: 12px;
+    color: #B9C2D0;
+    margin-bottom: 8px;
+  }
+  header h1 {
+    font-family: 'Shippori Mincho', serif;
+    font-weight: 800;
+    font-size: 28px;
+    margin: 0 0 6px;
+  }
+  header p {
+    color: #C9D0DA;
+    font-size: 14px;
+    margin: 0;
+  }
+  main {
+    max-width: 640px;
+    margin: -24px auto 60px;
+    padding: 0 20px;
+  }
+  .card {
+    background: var(--card);
+    border-radius: 14px;
+    border: 1px solid var(--line);
+    box-shadow: 0 8px 24px rgba(30,42,58,0.06);
+    padding: 22px;
+    margin-bottom: 18px;
+  }
+  .day-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--navy);
+    margin: 26px 4px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .day-label::before {
+    content: '';
+    width: 6px; height: 6px;
+    background: var(--gold);
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .slot-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    margin-bottom: 8px;
+    transition: border-color .15s;
+  }
+  .slot-row.open { cursor: pointer; }
+  .slot-row.open:hover { border-color: var(--teal); background: #F3FAF8; }
+  .slot-row.taken { opacity: 0.5; }
+  .slot-time { font-size: 15px; font-weight: 700; color: var(--navy); }
+  .slot-status {
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-weight: 700;
+  }
+  .slot-status.open { background: #E7F4F1; color: var(--teal); }
+  .slot-status.taken { background: #EDEEF1; color: var(--muted); }
+  .empty { text-align: center; color: var(--muted); padding: 40px 0; font-size: 14px; }
+  .modal-bg {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(30,42,58,0.5);
+    align-items: center; justify-content: center;
+    padding: 20px;
+    z-index: 10;
+  }
+  .modal-bg.show { display: flex; }
+  .modal {
+    background: #fff;
+    border-radius: 14px;
+    padding: 26px;
+    max-width: 400px;
+    width: 100%;
+  }
+  .modal h2 { font-size: 17px; margin: 0 0 4px; color: var(--navy); }
+  .modal .sub { font-size: 13px; color: var(--muted); margin-bottom: 18px; }
+  label { display: block; font-size: 12px; font-weight: 700; color: var(--navy); margin: 12px 0 6px; }
+  input, textarea {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  .btn-row { display: flex; gap: 10px; margin-top: 20px; }
+  button {
+    flex: 1;
+    border: none;
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .btn-primary { background: var(--navy); color: #fff; }
+  .btn-primary:disabled { background: var(--muted); cursor: not-allowed; }
+  .btn-cancel { background: #EEF0F3; color: var(--text); }
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: var(--navy); color: #fff; padding: 12px 20px; border-radius: 10px;
+    font-size: 13px; display: none; z-index: 20;
+  }
+  .toast.show { display: block; }
+  .note { font-size: 12px; color: var(--muted); text-align: center; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">SCHEDULE BOOKING</div>
+  <h1>ZOOM日程予約</h1>
+  <p>空いている枠を選んで、ご都合の良い日時をご予約ください</p>
+</header>
+
+<main>
+  <div id="slotList"></div>
+  <div id="emptyState" class="empty" style="display:none;">現在ご案内できる空き枠がありません</div>
+</main>
+
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h2 id="modalTitle">日程を予約する</h2>
+    <div class="sub" id="modalSub"></div>
+    <label>お名前</label>
+    <input type="text" id="inputName" placeholder="山田 太郎">
+    <label>会社名</label>
+    <input type="text" id="inputCompany" placeholder="株式会社サンプル">
+    <label>連絡先（メールまたは電話）</label>
+    <input type="text" id="inputContact" placeholder="example@mail.com">
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="closeModal()">キャンセル</button>
+      <button class="btn-primary" id="submitBtn" onclick="submitReservation()">この日時で予約する</button>
+    </div>
+    <div class="note">予約後、担当者の確認をもって正式確定となります</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ここに実際のGAS Web AppのURLを設定する
+  const API_URL = 'YOUR_GAS_WEB_APP_URL_HERE';
+
+  let selectedSlotId = null;
+
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2600);
+  }
+
+  function fmtDate(dateStr) {
+    const d = new Date(dateStr);
+    if (isNaN(d)) return dateStr;
+    const days = ['日','月','火','水','木','金','土'];
+    return (d.getMonth()+1) + '月' + d.getDate() + '日（' + days[d.getDay()] + '）';
+  }
+
+  async function loadSlots() {
+    const res = await fetch(API_URL + '?action=getPublicSlots');
+    const data = await res.json();
+    if (!data.ok) return;
+    render(data.slots);
+  }
+
+  function render(slots) {
+    const list = document.getElementById('slotList');
+    const empty = document.getElementById('emptyState');
+    list.innerHTML = '';
+    if (!slots.length) { empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+
+    const byDate = {};
+    slots.sort((a,b) => (a.date+a.startTime).localeCompare(b.date+b.startTime));
+    slots.forEach(s => {
+      if (!byDate[s.date]) byDate[s.date] = [];
+      byDate[s.date].push(s);
+    });
+
+    Object.keys(byDate).forEach(date => {
+      const label = document.createElement('div');
+      label.className = 'day-label';
+      label.textContent = fmtDate(date);
+      list.appendChild(label);
+
+      byDate[date].forEach(s => {
+        const isOpen = s.status === '空き';
+        const row = document.createElement('div');
+        row.className = 'slot-row ' + (isOpen ? 'open' : 'taken');
+        row.innerHTML =
+          '<div class="slot-time">' + s.startTime + ' 〜 ' + s.endTime + '</div>' +
+          '<div class="slot-status ' + (isOpen ? 'open' : 'taken') + '">' + (isOpen ? '予約可能' : '予約済み') + '</div>';
+        if (isOpen) {
+          row.onclick = () => openModal(s);
+        }
+        list.appendChild(row);
+      });
+    });
+  }
+
+  function openModal(s) {
+    selectedSlotId = s.id;
+    document.getElementById('modalSub').textContent = fmtDate(s.date) + ' ' + s.startTime + '〜' + s.endTime;
+    document.getElementById('inputName').value = '';
+    document.getElementById('inputCompany').value = '';
+    document.getElementById('inputContact').value = '';
+    document.getElementById('modalBg').classList.add('show');
+  }
+
+  function closeModal() {
+    document.getElementById('modalBg').classList.remove('show');
+  }
+
+  async function submitReservation() {
+    const name = document.getElementById('inputName').value.trim();
+    const company = document.getElementById('inputCompany').value.trim();
+    const contact = document.getElementById('inputContact').value.trim();
+    if (!name || !contact) { toast('お名前と連絡先を入力してください'); return; }
+
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.textContent = '送信中...';
+
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'reserveSlot',
+          id: selectedSlotId,
+          clientName: name,
+          clientCompany: company,
+          clientContact: contact
+        })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        closeModal();
+        toast('仮予約を受け付けました。担当者の確認後に確定します');
+        loadSlots();
+      } else if (data.error === 'already_taken') {
+        toast('この枠はすでに予約されています。別の枠をお選びください');
+        closeModal();
+        loadSlots();
+      } else {
+        toast('エラーが発生しました。時間をおいて再度お試しください');
+      }
+    } catch (e) {
+      toast('通信エラーが発生しました');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'この日時で予約する';
+    }
+  }
+
+  loadSlots();
+</script>
+</body>
+</html>

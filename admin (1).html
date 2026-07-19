@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>スケジュール管理</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@600;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #1E2A3A;
+    --bg: #F5F6F8;
+    --card: #FFFFFF;
+    --line: #E3E6EC;
+    --gold: #C98A2B;
+    --teal: #2F8E82;
+    --red: #C1544C;
+    --muted: #8A93A3;
+    --text: #232C38;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); font-family: 'Zen Kaku Gothic New', sans-serif; color: var(--text); }
+  header { background: var(--navy); color: #fff; padding: 26px 24px; }
+  header h1 { font-family: 'Shippori Mincho', serif; font-size: 22px; margin: 0; }
+  header p { color: #B9C2D0; font-size: 13px; margin: 4px 0 0; }
+  main { max-width: 760px; margin: 24px auto 60px; padding: 0 20px; }
+
+  #loginBox { max-width: 340px; margin: 80px auto; background: #fff; padding: 28px; border-radius: 14px; border: 1px solid var(--line); }
+  #loginBox h2 { font-size: 16px; margin: 0 0 14px; }
+  #loginBox input { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; margin-bottom: 12px; }
+  #loginBox button { width: 100%; padding: 11px; background: var(--navy); color: #fff; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
+
+  .card { background: var(--card); border-radius: 14px; border: 1px solid var(--line); padding: 20px; margin-bottom: 18px; }
+  .card h2 { font-size: 14px; margin: 0 0 14px; color: var(--navy); }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .form-grid.memo { grid-template-columns: 1fr; margin-top: 10px; }
+  label { display: block; font-size: 11px; font-weight: 700; color: var(--muted); margin-bottom: 4px; }
+  input { width: 100%; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px; font-family: inherit; }
+  .add-btn { margin-top: 14px; background: var(--navy); color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 13px; }
+
+  .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+  .tab { padding: 8px 14px; border-radius: 999px; font-size: 12px; font-weight: 700; cursor: pointer; background: #EEF0F3; color: var(--muted); }
+  .tab.active { background: var(--navy); color: #fff; }
+
+  .row { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; }
+  .row .info { font-size: 13px; }
+  .row .date { font-weight: 700; color: var(--navy); }
+  .row .client { color: var(--muted); font-size: 12px; margin-top: 3px; }
+  .badge { font-size: 11px; padding: 3px 9px; border-radius: 999px; font-weight: 700; margin-right: 8px; }
+  .badge.open { background: #E7F4F1; color: var(--teal); }
+  .badge.pending { background: #FBF0DE; color: var(--gold); }
+  .badge.confirmed { background: #E4EAF5; color: var(--navy); }
+  .actions { display: flex; gap: 6px; align-items: center; }
+  .actions button { border: none; border-radius: 7px; padding: 7px 10px; font-size: 12px; font-weight: 700; cursor: pointer; }
+  .btn-approve { background: var(--teal); color: #fff; }
+  .btn-reject { background: #FBEAE9; color: var(--red); }
+  .btn-delete { background: #EEF0F3; color: var(--muted); }
+  .empty { text-align: center; color: var(--muted); padding: 30px 0; font-size: 13px; }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--navy); color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 13px; display: none; }
+  .toast.show { display: block; }
+</style>
+</head>
+<body>
+
+<div id="loginBox">
+  <h2>管理画面ログイン</h2>
+  <input type="password" id="pwInput" placeholder="パスワード">
+  <button onclick="login()">ログイン</button>
+</div>
+
+<div id="appRoot" style="display:none;">
+  <header>
+    <h1>スケジュール管理</h1>
+    <p>空き枠の登録と、クライアントからの予約承認を行います</p>
+  </header>
+
+  <main>
+    <div class="card">
+      <h2>空き枠を追加</h2>
+      <div class="form-grid">
+        <div><label>日付</label><input type="date" id="newDate"></div>
+        <div><label>開始時刻</label><input type="time" id="newStart"></div>
+        <div><label>終了時刻</label><input type="time" id="newEnd"></div>
+      </div>
+      <div class="form-grid memo">
+        <div><label>メモ（任意・内部確認用）</label><input type="text" id="newMemo" placeholder="例：第一希望枠"></div>
+      </div>
+      <button class="add-btn" onclick="addSlot()">この枠を追加する</button>
+    </div>
+
+    <div class="card">
+      <div class="tabs">
+        <div class="tab active" data-tab="all" onclick="switchTab('all')">すべて</div>
+        <div class="tab" data-tab="pending" onclick="switchTab('pending')">仮予約（要承認）</div>
+        <div class="tab" data-tab="open" onclick="switchTab('open')">空き</div>
+        <div class="tab" data-tab="confirmed" onclick="switchTab('confirmed')">確定</div>
+      </div>
+      <div id="slotList"></div>
+      <div class="empty" id="emptyState" style="display:none;">対象の枠がありません</div>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const API_URL = 'YOUR_GAS_WEB_APP_URL_HERE';
+  let pw = '';
+  let allSlots = [];
+  let currentTab = 'all';
+
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2600);
+  }
+
+  async function login() {
+    pw = document.getElementById('pwInput').value;
+    const res = await fetch(API_URL + '?action=getAdminSlots&pw=' + encodeURIComponent(pw));
+    const data = await res.json();
+    if (!data.ok) { toast('パスワードが違います'); return; }
+    document.getElementById('loginBox').style.display = 'none';
+    document.getElementById('appRoot').style.display = 'block';
+    allSlots = data.slots;
+    render();
+  }
+
+  async function reload() {
+    const res = await fetch(API_URL + '?action=getAdminSlots&pw=' + encodeURIComponent(pw));
+    const data = await res.json();
+    if (data.ok) { allSlots = data.slots; render(); }
+  }
+
+  function switchTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+    render();
+  }
+
+  function statusBadge(status) {
+    if (status === '空き') return '<span class="badge open">空き</span>';
+    if (status === '仮予約') return '<span class="badge pending">仮予約</span>';
+    return '<span class="badge confirmed">確定</span>';
+  }
+
+  function render() {
+    const list = document.getElementById('slotList');
+    const empty = document.getElementById('emptyState');
+    list.innerHTML = '';
+
+    let filtered = allSlots.slice().sort((a,b) => (a.date+a.startTime).localeCompare(b.date+b.startTime));
+    if (currentTab === 'pending') filtered = filtered.filter(s => s.status === '仮予約');
+    if (currentTab === 'open') filtered = filtered.filter(s => s.status === '空き');
+    if (currentTab === 'confirmed') filtered = filtered.filter(s => s.status === '確定');
+
+    if (!filtered.length) { empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+
+    filtered.forEach(s => {
+      const row = document.createElement('div');
+      row.className = 'row';
+      const clientInfo = s.clientName
+        ? '<div class="client">' + s.clientName + (s.clientCompany ? '（' + s.clientCompany + '）' : '') + ' ／ ' + s.clientContact + '</div>'
+        : (s.memo ? '<div class="client">' + s.memo + '</div>' : '');
+
+      let actions = '<button class="btn-delete" onclick="removeSlot(\'' + s.id + '\')">削除</button>';
+      if (s.status === '仮予約') {
+        actions = '<button class="btn-approve" onclick="approve(\'' + s.id + '\')">承認して確定</button>' +
+                  '<button class="btn-reject" onclick="reject(\'' + s.id + '\')">却下</button>';
+      }
+
+      row.innerHTML =
+        '<div class="info">' +
+          statusBadge(s.status) +
+          '<span class="date">' + s.date + ' ' + s.startTime + '〜' + s.endTime + '</span>' +
+          clientInfo +
+        '</div>' +
+        '<div class="actions">' + actions + '</div>';
+      list.appendChild(row);
+    });
+  }
+
+  async function addSlot() {
+    const date = document.getElementById('newDate').value;
+    const start = document.getElementById('newStart').value;
+    const end = document.getElementById('newEnd').value;
+    const memo = document.getElementById('newMemo').value;
+    if (!date || !start || !end) { toast('日付と時刻を入力してください'); return; }
+
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'addSlot', pw: pw, date: date, startTime: start, endTime: end, memo: memo })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      toast('空き枠を追加しました');
+      document.getElementById('newMemo').value = '';
+      reload();
+    } else {
+      toast('追加に失敗しました');
+    }
+  }
+
+  async function approve(id) {
+    const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'approveSlot', pw: pw, id: id }) });
+    const data = await res.json();
+    if (data.ok) { toast('予約を確定しました'); reload(); } else { toast('処理に失敗しました'); }
+  }
+
+  async function reject(id) {
+    if (!confirm('この仮予約を却下して空き枠に戻しますか')) return;
+    const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'rejectSlot', pw: pw, id: id }) });
+    const data = await res.json();
+    if (data.ok) { toast('却下しました。空き枠に戻りました'); reload(); } else { toast('処理に失敗しました'); }
+  }
+
+  async function removeSlot(id) {
+    if (!confirm('この枠を削除しますか')) return;
+    const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'deleteSlot', pw: pw, id: id }) });
+    const data = await res.json();
+    if (data.ok) { toast('削除しました'); reload(); } else { toast('処理に失敗しました'); }
+  }
+</script>
+</body>
+</html>
